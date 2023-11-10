@@ -344,37 +344,43 @@ void utility::processROI(Mat& I, Mat& I2, Rect roi, istringstream& iss) {
             grayImage.copyTo(I2(roi));
         }
     } else if (functionName == "blur_avg") {
-    int blurSize;
-    iss >> blurSize;
-    Mat blurred;
-    blur(I(roi), blurred, Size(blurSize, blurSize));
-    if (I2.channels() == 3 && blurred.channels() == 1) {
-        cvtColor(blurred, blurred, COLOR_GRAY2BGR);
-    }
-    blurred.copyTo(I2(roi));
-} else if (functionName == "low_pass") {
+        int blurSize;
+        iss >> blurSize;
+        Mat blurred;
+        blur(I(roi), blurred, Size(blurSize, blurSize));
+        if (I2.channels() == 3 && blurred.channels() == 1) {
+            cvtColor(blurred, blurred, COLOR_GRAY2BGR);
+        }
+        blurred.copyTo(I2(roi));
+    } else if (functionName == "dft") {
+        utility::applyDFT(roiMat, roiMat2, roi.x, roi.y, roi.width, roi.height);
+    } else if (functionName == "low_pass") {
         float cutoff;
         iss >> cutoff;
+        // Apply low-pass filter in the frequency domain
         utility::applyLowPassFilter(roiMat, roiMat2, cutoff);
     } else if (functionName == "high_pass") {
         float cutoff;
         iss >> cutoff;
+        // Apply high-pass filter in the frequency domain
         utility::applyHighPassFilter(roiMat, roiMat2, cutoff);
     } else if (functionName == "unsharp") {
         float cutoff, T;
         iss >> cutoff >> T;
+        // Apply unsharp masking in the frequency domain
         utility::unsharpMasking(roiMat, roiMat2, cutoff, T);
     } else if (functionName == "band_stop") {
         float lowCutoff, highCutoff;
         iss >> lowCutoff >> highCutoff;
+        // Apply band-stop filter in the frequency domain
         utility::applyBandStopFilter(roiMat, roiMat2, lowCutoff, highCutoff);
     } else {
         printf("No OpenCV function for ROI: %s\n", functionName.c_str());
     }
 
-    if (I2.channels() == 3 && roiMat2.channels() == 1) {
-        cvtColor(roiMat2, roiMat2, COLOR_GRAY2BGR);
-    }
-    roiMat2.copyTo(I2(roi));
+        if (I2.channels() == 3 && roiMat2.channels() == 1) {
+            cvtColor(roiMat2, roiMat2, COLOR_GRAY2BGR);
+        }
+        roiMat2.copyTo(I2(roi));
 
 }
