@@ -22,6 +22,13 @@ class utility
 		static void cv_gray(cv::Mat &src, cv::Mat &tgt);
 		static void cv_avgblur(cv::Mat &src, cv::Mat &tgt, int WindowSize);
 		static void applyDFT(cv::Mat &src, cv::Mat &tgt, int x, int y, int width, int height);
+		static void applyLowPassFilter(Mat& src, Mat& tgt, float cutoff, Rect roi);
+		static void applyHighPassFilter(Mat& src, Mat& tgt, float cutoff, Rect roi);
+		static void unsharpMasking(Mat& src, Mat& tgt, float cutoff, float T, Rect roi);
+		static void greyAugmentedImages(Mat &src, Rect roi, int A, int B);
+		static void applyBandStopFilter(Mat& src, Mat& tgt, float lowCutoff, float highCutoff, Rect roi);
+		// static void filterHSVComponentAndDisplay(Mat& src, char component, string filterType, int F, int T = 0);
+		static void processROI(Mat& I, Mat& I2, Rect roi, istringstream& iss);
 };
 
 #endif
