@@ -118,3 +118,272 @@ void utility::applyDFT(cv::Mat &src, cv::Mat &tgt, int x, int y, int width, int 
     // Place the processed ROI back into the target image
     inverseTransform.copyTo(tgt(cv::Rect(x, y, width, height)));
 }
+
+/*-----------------------------------------------------------------------**/
+void utility::applyLowPassFilter(Mat& src, Mat& tgt, float cutoff, Rect roi) {
+    Mat srcROI = src(roi);
+    Mat tgtROI;
+    
+    Mat planes[] = {Mat_<float>(src), Mat::zeros(src.size(), CV_32F)};
+    Mat complexI;
+    merge(planes, 2, complexI);         
+    dft(complexI, complexI);            
+
+    // Create a circular mask, low pass
+    Mat mask = Mat::zeros(src.size(), CV_32F);
+    Point center = Point(mask.rows / 2, mask.cols / 2);
+    double radius;
+
+    for (int i = 0; i < mask.rows; i++) {
+        for (int j = 0; j < mask.cols; j++) {
+            radius = sqrt(pow(i - center.x, 2) + pow(j - center.y, 2));
+            if (radius < cutoff) {
+                mask.at<float>(i, j) = 1.0;
+            }
+        }
+    }
+
+    // Apply mask
+    Mat planesDFT[2];
+    split(complexI, planesDFT);
+    multiply(planesDFT[0], mask, planesDFT[0]);
+    multiply(planesDFT[1], mask, planesDFT[1]);
+    merge(planesDFT, 2, complexI);
+
+    // Transform back to spatial domain
+    idft(complexI, complexI);
+    split(complexI, planes);
+    normalize(planes[0], tgt, 0, 255, NORM_MINMAX, CV_8U);
+
+    tgtROI.copyTo(tgt(roi));
+}
+/*-----------------------------------------------------------------------**/
+void utility::applyHighPassFilter(Mat& src, Mat& tgt, float cutoff, Rect roi) {
+    Mat srcROI = src(roi);
+    Mat tgtROI;
+    Mat planes[] = {Mat_<float>(src), Mat::zeros(src.size(), CV_32F)};
+    Mat complexI;
+    merge(planes, 2, complexI);         
+    dft(complexI, complexI);            
+
+    // Create a circular mask, high pass
+    Mat mask = Mat::zeros(src.size(), CV_32F);
+    Point center = Point(mask.rows / 2, mask.cols / 2);
+    double radius;
+
+    for (int i = 0; i < mask.rows; i++) {
+        for (int j = 0; j < mask.cols; j++) {
+            radius = sqrt(pow(i - center.x, 2) + pow(j - center.y, 2));
+            if (radius > cutoff) {
+                mask.at<float>(i, j) = 1.0;
+            }
+        }
+    }
+
+    // Apply mask
+    Mat planesDFT[2];
+    split(complexI, planesDFT);
+    multiply(planesDFT[0], mask, planesDFT[0]);
+    multiply(planesDFT[1], mask, planesDFT[1]);
+    merge(planesDFT, 2, complexI);
+
+    // Transform back to spatial domain
+    idft(complexI, complexI);
+    split(complexI, planes);
+    normalize(planes[0], tgt, 0, 255, NORM_MINMAX, CV_8U);
+
+    tgtROI.copyTo(tgt(roi));
+}
+/*-----------------------------------------------------------------------**/
+
+void utility::unsharpMasking(Mat& src, Mat& tgt, float cutoff, float T, Rect roi) {
+    Mat srcROI = src(roi);
+    Mat tgtROI;
+    Mat planes[] = {Mat_<float>(src), Mat::zeros(src.size(), CV_32F)};
+    Mat complexI;
+    merge(planes, 2, complexI);         
+    dft(complexI, complexI);            
+
+    // Create a circular mask, high pass
+    Mat mask = Mat::zeros(src.size(), CV_32F);
+    Point center = Point(mask.rows / 2, mask.cols / 2);
+    double radius;
+
+    for (int i = 0; i < mask.rows; i++) {
+        for (int j = 0; j < mask.cols; j++) {
+            radius = sqrt(pow(i - center.x, 2) + pow(j - center.y, 2));
+            if (radius > cutoff) {
+                mask.at<float>(i, j) = T; // Scale the high-frequency components by T
+            }
+        }
+    }
+
+    // Apply mask
+    Mat planesDFT[2];
+    split(complexI, planesDFT);
+    multiply(planesDFT[0], mask, planesDFT[0]);
+    multiply(planesDFT[1], mask, planesDFT[1]);
+    merge(planesDFT, 2, complexI);
+
+    // Transform back to spatial domain
+    idft(complexI, complexI);
+    split(complexI, planes);
+    Mat highFreqComponent;
+    normalize(planes[0], highFreqComponent, 0, 255, NORM_MINMAX, CV_8U);
+
+    // Add the scaled high-frequency components back to the original image
+    tgt = src + highFreqComponent;
+
+    tgtROI.copyTo(tgt(roi));
+}
+/*-----------------------------------------------------------------------**/
+
+void utility::greyAugmentedImages(Mat &src, Rect roi, int F, int T)
+{
+    // Extract ROI from the input image
+    cv::Mat ROI = src( roi);
+
+    // a. Rotate original ROI
+    imwrite("Original_Roi.jpg", ROI);
+    for(int angle = 1; angle <= 3; angle++) {
+        Mat rotated;
+        cv::rotate(ROI, rotated, angle-1); // Note the rotation code is used directly        
+        imwrite("Rotated_ROI_" + std::to_string(angle*90) + ".jpg", rotated);
+    }
+
+    // b. Low-pass filter and then rotate
+    Mat lowPassROI;
+    utility::applyLowPassFilter(ROI, lowPassROI, F, roi); // Assuming applyLowPassFilter is implemented
+    for(int angle = 1; angle <= 3; angle++) {
+        Mat rotated;
+        cv::rotate(lowPassROI, rotated, angle-1);
+        imwrite("LowPass_Rotated_ROI_" + std::to_string(angle*90) + ".jpg", rotated);
+    }
+
+    // c. Unsharp masking and then rotate
+    Mat unsharpROI;
+    utility::unsharpMasking(ROI, unsharpROI, F, T, roi); // Assuming applyUnsharpMasking is implemented
+    for(int angle = 1; angle <= 3; angle++) {
+        Mat rotated;
+        cv::rotate(unsharpROI, rotated, angle-1);
+        imwrite("Unsharp_Rotated_ROI_" + std::to_string(angle*90) + ".jpg", rotated);
+    }
+}
+/*-----------------------------------------------------------------------**/
+
+void utility::applyBandStopFilter(Mat& src, Mat& tgt, float lowCutoff, float highCutoff, Rect roi) {
+    Mat srcROI = src(roi);
+    Mat tgtROI;
+    // Convert to floating-point format and perform DFT
+    Mat planes[] = {Mat_<float>(src), Mat::zeros(src.size(), CV_32F)};
+    Mat complexI;
+    merge(planes, 2, complexI);
+    dft(complexI, complexI);
+
+    // Create a band-stop mask
+    Mat mask = Mat::ones(src.size(), CV_32F);
+    Point center = Point(mask.rows / 2, mask.cols / 2);
+    double radius;
+
+    for (int i = 0; i < mask.rows; i++) {
+        for (int j = 0; j < mask.cols; j++) {
+            radius = sqrt(pow(i - center.x, 2) + pow(j - center.y, 2));
+            if (radius >= lowCutoff && radius <= highCutoff) {
+                mask.at<float>(i, j) = 0;
+            }
+        }
+    }
+
+    // Apply mask
+    Mat planesDFT[2];
+    split(complexI, planesDFT);
+    multiply(planesDFT[0], mask, planesDFT[0]);
+    multiply(planesDFT[1], mask, planesDFT[1]);
+    merge(planesDFT, 2, complexI);
+
+    // Transform back to spatial domain
+    idft(complexI, complexI);
+    split(complexI, planes);
+    normalize(planes[0], tgt, 0, 255, NORM_MINMAX, CV_8U);
+
+    tgtROI.copyTo(tgt(roi));
+}
+/*-----------------------------------------------------------------------**/
+/*
+void utility::filterHSVComponentAndDisplay(Mat& src, char component, string filterType, int F, int T = 0) {
+        // Convert to HSV
+        Mat hsv;
+        cvtColor(src, hsv, COLOR_BGR2HSV);
+
+        // Split into H, S, V channels
+        std::vector<Mat> hsvChannels(3);
+        split(hsv, hsvChannels);
+
+        // Select the channel to filter
+        Mat& targetChannel = (component == 'H') ? hsvChannels[0] : 
+                             (component == 'S') ? hsvChannels[1] : hsvChannels[2];
+
+        // Apply the desired filter
+        if (filterType == "low-pass") {
+            utility::applyLowPassFilter(targetChannel, targetChannel, F);
+        } else if (filterType == "high-pass") {
+            utility::applyHighPassFilter(targetChannel, targetChannel, F);
+        } else if (filterType == "band-stop") {
+            utility::applyBantgtopFilter(targetChannel, targetChannel, F, T); // T is used as highF for band-stop
+        }
+
+        // Merge back and convert to RGB
+        merge(hsvChannels, hsv);
+        Mat filteredRGB;
+        cvtColor(hsv, filteredRGB, COLOR_HSV2BGR);
+
+        // Display or save the result
+        imshow("Filtered Image", filteredRGB);
+        waitKey(0);
+} */
+/*-----------------------------------------------------------------------**/
+
+void utility::processROI(Mat& I, Mat& I2, Rect roi, istringstream& iss) {
+    string functionName;
+    iss >> functionName;
+
+    cv::Mat roiMat = I(roi); 
+    cv::Mat roiMat2 = I2(roi);
+
+    if (functionName == "gray") {
+        cv::Mat grayImage;
+        cvtColor(I(roi), grayImage, COLOR_BGR2GRAY);
+        if (I2.channels() == 3) {
+            cv::Mat colorImage;
+            cvtColor(grayImage, colorImage, COLOR_GRAY2BGR);
+            colorImage.copyTo(I2(roi));
+        } else {
+            grayImage.copyTo(I2(roi));
+        }
+    } else if (functionName == "blur_avg") {
+        int blurSize;
+        iss >> blurSize;
+        blur(I(roi), I2(roi), Size(blurSize, blurSize));
+    } else if (functionName == "low_pass") {
+        float cutoff;
+        iss >> cutoff;
+        utility::applyLowPassFilter(roiMat, roiMat2, cutoff, roi);
+    } else if (functionName == "high_pass") {
+        float cutoff;
+        iss >> cutoff;
+        utility::applyHighPassFilter(roiMat, roiMat2, cutoff, roi);
+    } else if (functionName == "unsharp") {
+        float cutoff, T;
+        iss >> cutoff >> T;
+        utility::unsharpMasking(roiMat, roiMat2, cutoff, T, roi);
+    } else if (functionName == "band_stop") {
+        float lowCutoff, highCutoff;
+        iss >> lowCutoff >> highCutoff;
+        utility::applyBandStopFilter(roiMat, roiMat2, lowCutoff, highCutoff, roi);
+    } else {
+        printf("No OpenCV function for ROI: %s\n", functionName.c_str());
+    }
+
+    // Copy the processed ROI back to the original image
+    roiMat2.copyTo(I2(roi));
+}
