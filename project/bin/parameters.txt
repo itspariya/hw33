@@ -1,4 +1,7 @@
-11.jpg 11_gray.jpg 0 opencv gray
-11.jpg 11_blur.jpg 0 opencv blur_avg 5
-baboon.pgm baboon_roi_bi125.pgm 1 50 50 100 100 binarize 125
-baboon.pgm baboon_roi_add50.pgm 1 30 30 150 150 add 50
+11.jpg 11_gray.jpg opencv 1 0 0 100 100 gray
+11.jpg 11_blur.jpg opencv 1 0 0 100 100 blur_avg 5
+11.jpg 11_gray2.jpg opencv 1 100 100 150 150 gray
+11.jpg 11_low_pass.jpg opencv 1 50 50 100 100 low_pass 30
+11.jpg 11_high_pass.jpg opencv 1 100 100 150 150 high_pass 30
+11.jpg 11_unsharp.jpg opencv 1 100 100 150 150 unsharp 30 1.5
+11.jpg 11_band_stop.jpg opencv 1 100 100 150 150 band_stop 20 40
