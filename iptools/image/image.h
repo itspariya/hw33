@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h> 
 #include <vector>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
+using namespace cv;
 
 enum channel{RED, GREEN, BLUE, GREY=RED, GRAY=GREY};
 
@@ -47,6 +49,8 @@ public:
    bool read (char* file);
    bool isInbounds (const int row, const int col);
 
+   cv::Mat toMat();
+   void fromMat(const cv::Mat &mat);
 
 };
 

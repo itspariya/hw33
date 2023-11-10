@@ -4,8 +4,14 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
+using namespace cv;
+
+
+/*-----------------------------------------------------------------------**/
+
 
 image::image()
 {
@@ -370,4 +376,46 @@ int image::getint(FILE *fp)
 	} while (flag == 1);
 
 	return i;
+}
+/*-----------------------------------------------------------------------**/
+
+cv::Mat image::toMat() {
+    // Assuming your image is an 8-bit image with values from 0 to 255
+    cv::Mat mat(data.numRows, data.numColumns, CV_8UC3); // CV_8UC3 for a 3-channel color image
+
+    for (int i = 0; i < data.numRows; ++i) {
+        for (int j = 0; j < data.numColumns; ++j) {
+            // OpenCV uses BGR format by default
+            cv::Vec3b &intensity = mat.at<cv::Vec3b>(i, j);
+            intensity.val[0] = static_cast<unsigned char>(getPixel(i, j, BLUE));  // Blue channel
+            intensity.val[1] = static_cast<unsigned char>(getPixel(i, j, GREEN)); // Green channel
+            intensity.val[2] = static_cast<unsigned char>(getPixel(i, j, RED));   // Red channel
+        }
+    }
+
+    return mat;
+}
+/*-----------------------------------------------------------------------**/
+
+void image::fromMat(const cv::Mat &mat) {
+    // First, clear the current image data
+    deleteImage();
+
+    // Set the new number of rows and columns
+    setNumberOfRows(mat.rows);
+    setNumberOfColumns(mat.cols);
+
+    // Resize the image to accommodate the new data
+    resize(mat.rows, mat.cols);
+
+    // Iterate over the Mat object and set the pixels in the image
+    for (int i = 0; i < mat.rows; ++i) {
+        for (int j = 0; j < mat.cols; ++j) {
+            // Assuming the Mat is of type CV_8UC3 for a color image
+            const cv::Vec3b &intensity = mat.at<cv::Vec3b>(i, j);
+            setPixel(i, j, BLUE, intensity.val[0]);
+            setPixel(i, j, GREEN, intensity.val[1]);
+            setPixel(i, j, RED, intensity.val[2]);
+        }
+    }
 }
